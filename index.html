@@ -379,7 +379,7 @@
                         <button class="btn btn-primary" onclick="downloadAsImage()"><i class="fas fa-download"></i> इमेज डाउनलोड करा</button>
                         <button class="btn btn-primary" onclick="downloadAsPDF()"><i class="fas fa-file-pdf"></i> PDF डाउनलोड करा</button>
                         <button class="btn btn-success" onclick="shareOnWhatsApp()"><i class="fab fa-whatsapp"></i> WhatsApp वर शेअर करा</button>
-                        <button class="btn btn-secondary" onclick="saveBiodata()"><i class="fas fa-save"></i> बायोडाटा जतन करा</button>
+                        <button class="btn btn-secondary" id="save-update-btn" onclick="saveBiodata()"><i class="fas fa-save"></i> बायोडाटा जतन करा</button>
                     </div>
                 </div>
                 <div style="flex: 2; min-width: 400px;">
@@ -442,6 +442,7 @@
         const prevStepBtn = document.getElementById('prev-step-btn');
         const nextStepBtn = document.getElementById('next-step-btn');
         const finishBtn = document.getElementById('finish-btn');
+        const saveUpdateBtn = document.getElementById('save-update-btn');
 
 
         // --- Utility Functions ---
@@ -494,6 +495,13 @@
             currentStep = 0;
             displayStep(currentStep);
             showSection('biodata-form-section');
+            
+            // Update button text
+            if (isEditing) {
+                saveUpdateBtn.innerHTML = '<i class="fas fa-sync-alt"></i> बायोडाटा अपडेट करा';
+            } else {
+                saveUpdateBtn.innerHTML = '<i class="fas fa-save"></i> बायोडाटा जतन करा';
+            }
         }
         function showPreview() {
             showSection('preview-section');
@@ -559,7 +567,10 @@
             showLoader();
             auth.signInWithPopup(googleProvider)
                 .then(() => { hideAuth(); showToast("Google लॉगिन यशस्वी झाले!"); })
-                .catch(err => showToast(err.message, false))
+                .catch(err => {
+                    showToast("Google लॉगिन अयशस्वी. कृपया फायरबेसमध्ये डोमेन अधिकृत असल्याची खात्री करा.", false);
+                    console.error("Google Sign-In Error:", err);
+                })
                 .finally(hideLoader);
         }
 
@@ -737,7 +748,7 @@
 
             let html = `
                 <div style="border: 5px solid #D1A054; padding: 20px; background: #FFF8E1;">
-                    <h1 style="text-align:center; color: #8C3B00; font-family: 'Tiro Devanagari Marathi', serif;">|| श्री गणेशाय नमः ||</h1>
+                    <h1 style="text-align:center; color: #8C3B00; font-family: 'Tiro Devanagari Marathi', serif; font-size: 1.5rem;">|| श्री गणेशाय नमः ||</h1>
                     ${photo}
                     <h2 style="background: #D1A054; color: white; padding: 5px; text-align:center;">वैयक्तिक माहिती</h2>
                     <p><strong>पूर्ण नाव:</strong> ${data['पूर्ण-नाव'] || ''}</p>
