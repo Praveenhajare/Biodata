@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>मराठी विवाह बायोडाटा मेकर</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&family=Mukta:wght@400;700&family=Tiro+Devanagari+Marathi:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #D1A054;
+            --secondary-color: #8C3B00;
+            --background-color: #FFF8E1;
+            --text-color: #333;
+            --white: #fff;
+            --danger-color: #e74c3c;
+            --success-color: #2ecc71;
+            --font-main: 'Noto Sans Devanagari', sans-serif;
+            --font-biodata: 'Mukta', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-main);
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        #app {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .hidden { display: none !important; }
+
+        /* --- Header --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            color: var(--white);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        header h1 { font-size: 1.5rem; margin: 0; }
+        #user-info { font-size: 0.9rem; }
+        #logout-btn {
+            background: none;
+            border: 1px solid var(--white);
+            color: var(--white);
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #logout-btn:hover { background-color: var(--white); color: var(--secondary-color); }
+
+
+        /* --- Sections --- */
+        section {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-top: 2rem;
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: var(--white);
+        }
+        .btn-primary:hover { background-color: var(--secondary-color); }
+        .btn-secondary {
+            background-color: #ccc;
+            color: #333;
+        }
+        .btn-secondary:hover { background-color: #b3b3b3; }
+        .btn-google { background-color: #4285F4; color: white; }
+        .btn-google:hover { background-color: #357ae8; }
+
+
+        /* --- Forms --- */
+        .form-group { margin-bottom: 1.5rem; position: relative; }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-family: var(--font-main);
+            box-sizing: border-box;
+        }
+        .password-toggle {
+            position: absolute;
+            top: 70%;
+            right: 10px;
+            transform: translateY(-50%);
+            cursor: pointer;
+        }
+        .form-group textarea { resize: vertical; }
+
+
+        /* --- Auth Modal --- */
+        #auth-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #auth-container {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        #auth-container h2 { text-align: center; margin-bottom: 1.5rem; }
+
+
+        /* --- Biodata Form --- */
+        #biodata-form-section h2 { text-align: center; }
+        .form-step { display: none; }
+        .form-step.active { display: block; }
+        #step-indicator {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .step {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            background: #eee;
+            color: #888;
+            margin: 5px;
+        }
+        .step.active { background: var(--primary-color); color: var(--white); }
+        #form-navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+        }
+
+        /* --- Photo Upload --- */
+        #photo-upload-area {
+            border: 2px dashed #ccc;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+        }
+        #photo-preview {
+            max-width: 200px;
+            max-height: 200px;
+            margin-top: 1rem;
+        }
+
+        /* --- Template Library --- */
+        #template-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+        .template-thumbnail {
+            border: 2px solid #eee;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .template-thumbnail:hover, .template-thumbnail.selected {
+            border-color: var(--primary-color);
+            transform: scale(1.05);
+        }
+        .template-thumbnail img { width: 100%; height: auto; display: block; }
+        .template-thumbnail p { text-align: center; margin: 0.5rem 0; font-weight: bold; }
+
+
+        /* --- Preview Section --- */
+        #preview-area {
+            border: 1px solid #ccc;
+            padding: 1rem;
+            min-height: 500px;
+            background: #f9f9f9;
+        }
+        #biodata-preview-content {
+            font-family: var(--font-biodata);
+            color: #000;
+            background: white;
+        }
+        #biodata-preview-content img {
+            max-width: 150px;
+            border-radius: 5px;
+            display: block;
+            margin: 0 auto 1rem;
+        }
+
+        /* --- My Biodatas --- */
+        #biodatas-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        .biodata-card {
+            background: #f9f9f9;
+            padding: 1rem;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .biodata-card h4 { margin-top: 0; }
+
+        /* --- Toast & Loader --- */
+        #toast {
+            position: fixed; top: 20px; right: 20px;
+            padding: 1rem 2rem; border-radius: 5px;
+            color: var(--white); font-weight: bold;
+            z-index: 2000; opacity: 0; transition: opacity 0.5s;
+        }
+        #toast.show { opacity: 1; }
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8); z-index: 2001;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid var(--primary-color);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* --- Responsive --- */
+        @media (max-width: 768px) {
+            header { flex-direction: column; text-align: center; }
+            header h1 { margin-bottom: 0.5rem; }
+            #app { padding: 10px; }
+            section { padding: 1rem; }
+            .btn { width: 100%; margin-bottom: 0.5rem; }
+            #form-navigation { flex-direction: column; }
+        }
+
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header class="hidden">
+            <h1>मराठी विवाह बायोडाटा मेकर</h1>
+            <div id="user-info">
+                <span id="user-email"></span>
+                <button id="logout-btn">लॉगआउट</button>
+            </div>
+        </header>
+
+        <div id="loader" class="hidden"><div class="spinner"></div></div>
+        <div id="toast" class="hidden"></div>
+
+        <!-- Landing Section -->
+        <section id="landing-section">
+            <h1 style="text-align:center; font-size: 2.5rem; color: var(--secondary-color);">तुमचा परिपूर्ण विवाह बायोडाटा तयार करा</h1>
+            <p style="text-align:center; font-size: 1.2rem;">जलद, सोपे आणि व्यावसायिक बायोडाटा काही मिनिटांत बनवा.</p>
+            <div style="text-align:center; margin-top: 2rem;">
+                <button class="btn btn-primary" onclick="showAuth('login')">लॉगिन</button>
+                <button class="btn btn-secondary" onclick="showAuth('signup')">नवीन खाते तयार करा</button>
+            </div>
+        </section>
+
+        <!-- Auth Modal -->
+        <div id="auth-modal" class="hidden">
+            <div id="auth-container">
+                <button onclick="hideAuth()" style="float:right; background:none; border:none; font-size:1.5rem;">&times;</button>
+                <div id="login-form">
+                    <h2>लॉगिन</h2>
+                    <div class="form-group">
+                        <label for="login-email">ईमेल</label>
+                        <input type="email" id="login-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">पासवर्ड</label>
+                        <input type="password" id="login-password" required>
+                        <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('login-password')"></i>
+                    </div>
+                    <button class="btn btn-primary" onclick="loginWithEmail()">लॉगिन</button>
+                    <p style="text-align:center; margin: 1rem 0;">किंवा</p>
+                    <button class="btn btn-google" onclick="loginWithGoogle()"><i class="fab fa-google"></i> Google ने लॉगिन करा</button>
+                    <p style="text-align:center; margin-top: 1rem;">खाते नाही? <a href="#" onclick="toggleAuthForm('signup')">नोंदणी करा</a></p>
+                </div>
+                <div id="signup-form" class="hidden">
+                    <h2>नोंदणी</h2>
+                    <div class="form-group">
+                        <label for="signup-email">ईमेल</label>
+                        <input type="email" id="signup-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-password">पासवर्ड</label>
+                        <input type="password" id="signup-password" required>
+                        <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('signup-password')"></i>
+                    </div>
+                     <div class="form-group">
+                        <label for="signup-confirm-password">पासवर्डची पुष्टी करा</label>
+                        <input type="password" id="signup-confirm-password" required>
+                         <i class="fas fa-eye password-toggle" onclick="togglePasswordVisibility('signup-confirm-password')"></i>
+                    </div>
+                    <button class="btn btn-primary" onclick="signupWithEmail()">नोंदणी</button>
+                     <p style="text-align:center; margin-top: 1rem;">आधीपासूनच खाते आहे? <a href="#" onclick="toggleAuthForm('login')">लॉगिन करा</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="hidden">
+            <h2>डॅशबोर्ड</h2>
+            <button class="btn btn-primary" onclick="showBiodataForm()">नवीन बायोडाटा तयार करा</button>
+            <div id="my-biodatas-section" style="margin-top: 2rem;">
+                <h3><i class="fas fa-file-alt"></i> माझे जतन केलेले बायोडाटा</h3>
+                <div id="biodatas-list"></div>
+            </div>
+        </section>
+
+        <!-- Biodata Form Section -->
+        <section id="biodata-form-section" class="hidden">
+            <h2>बायोडाटा तयार करा</h2>
+            <div id="step-indicator"></div>
+            <form id="biodata-form">
+                <!-- Steps will be injected here by JS -->
+            </form>
+            <div id="form-navigation">
+                <button class="btn btn-secondary" id="prev-step-btn" onclick="navigateStep(-1)">मागे</button>
+                <button class="btn btn-primary" id="next-step-btn" onclick="navigateStep(1)">पुढे</button>
+                <button class="btn btn-primary hidden" id="finish-btn" onclick="finishForm()">पूर्ण झाले</button>
+            </div>
+             <button class="btn btn-secondary" onclick="showDashboard()" style="margin-top: 1rem;">डॅशबोर्डवर परत जा</button>
+        </section>
+
+        <!-- Template and Preview Section -->
+        <section id="preview-section" class="hidden">
+            <h2>टेम्पलेट निवडा आणि पूर्वावलोकन करा</h2>
+            <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 300px;">
+                    <h3><i class="fas fa-palette"></i> टेम्पलेट लायब्ररी</h3>
+                    <div id="template-gallery"></div>
+                     <div id="action-buttons" style="margin-top: 2rem; text-align: center;">
+                        <button class="btn btn-primary" onclick="downloadAsImage()"><i class="fas fa-download"></i> इमेज डाउनलोड करा</button>
+                        <button class="btn btn-primary" onclick="downloadAsPDF()"><i class="fas fa-file-pdf"></i> PDF डाउनलोड करा</button>
+                        <button class="btn btn-success" onclick="shareOnWhatsApp()"><i class="fab fa-whatsapp"></i> WhatsApp वर शेअर करा</button>
+                        <button class="btn btn-secondary" onclick="saveBiodata()"><i class="fas fa-save"></i> बायोडाटा जतन करा</button>
+                    </div>
+                </div>
+                <div style="flex: 2; min-width: 400px;">
+                    <h3><i class="fas fa-eye"></i> थेट पूर्वावलोकन</h3>
+                    <div id="preview-area">
+                        <div id="biodata-preview-content">
+                            <!-- Biodata preview will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-secondary" onclick="showBiodataForm(true)" style="margin-top: 1rem;">माहिती संपादित करा</button>
+        </section>
+
+    </div>
+
+    <script>
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDnmKEC-lUeregRbVApn9Nds6tp1Wzk83Y",
+            authDomain: "photo-lab-40502.firebaseapp.com",
+            databaseURL: "https://photo-lab-40502-default-rtdb.firebaseio.com",
+            projectId: "photo-lab-40502",
+            storageBucket: "photo-lab-40502.firebasestorage.app",
+            messagingSenderId: "488617500681",
+            appId: "1:488617500681:web:a216b471b3711f469458d8",
+            measurementId: "G-QR69RZN3VY"
+        };
+
+        // --- Initialize Firebase ---
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+        // --- Global Variables ---
+        let currentUser = null;
+        let currentBiodataId = null;
+        let formData = { photoBase64: null };
+        let currentStep = 0;
+        const optionalFields = ['गोत्र', 'पदवी'];
+        const formSteps = [
+            { name: "वैयक्तिक माहिती", fields: ["पूर्ण नाव", "जन्मतारीख", "उंची", "जन्मस्थळ", "गोत्र", "राशी"] },
+            { name: "शिक्षण", fields: ["शिक्षणाचा तपशील", "पदवी", "शाळा/कॉलेज नाव"] },
+            { name: "व्यवसाय", fields: ["नोकरी/व्यवसाय"] },
+            { name: "कौटुंबिक माहिती", fields: ["वडिलांचे नाव व व्यवसाय", "आईचे नाव", "भावंडे (संख्या व तपशील)", "मामेकूळ"] },
+            { name: "अपेक्षा", fields: ["जोडीदारासाठी अपेक्षा"] },
+            { name: "संपर्क आणि फोटो", fields: ["मोबाइल/वॉट्सअप नंबर", "ईमेल", "पत्ता", "फोटो अपलोड"] }
+        ];
+
+        // --- DOM Elements ---
+        const allSections = document.querySelectorAll('section');
+        const header = document.querySelector('header');
+        const authModal = document.getElementById('auth-modal');
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const biodataFormEl = document.getElementById('biodata-form');
+        const stepIndicatorEl = document.getElementById('step-indicator');
+        const prevStepBtn = document.getElementById('prev-step-btn');
+        const nextStepBtn = document.getElementById('next-step-btn');
+        const finishBtn = document.getElementById('finish-btn');
+
+
+        // --- Utility Functions ---
+        function showToast(message, isSuccess = true) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.backgroundColor = isSuccess ? 'var(--success-color)' : 'var(--danger-color)';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function showLoader() { document.getElementById('loader').classList.remove('hidden'); }
+        function hideLoader() { document.getElementById('loader').classList.add('hidden'); }
+
+        function showSection(sectionId) {
+            allSections.forEach(sec => sec.classList.add('hidden'));
+            document.getElementById(sectionId).classList.remove('hidden');
+            header.classList.toggle('hidden', sectionId === 'landing-section');
+        }
+
+
+        // --- Navigation ---
+        function showAuth(form) {
+            authModal.classList.remove('hidden');
+            toggleAuthForm(form);
+        }
+        function hideAuth() { authModal.classList.add('hidden'); }
+        function toggleAuthForm(form) {
+            if (form === 'login') {
+                loginForm.classList.remove('hidden');
+                signupForm.classList.add('hidden');
+            } else {
+                loginForm.classList.add('hidden');
+                signupForm.classList.remove('hidden');
+            }
+        }
+        function showDashboard() {
+            showSection('dashboard-section');
+            fetchUserBiodatas();
+        }
+        function showBiodataForm(isEditing = false) {
+            if (!isEditing) {
+                currentBiodataId = null;
+                formData = { photoBase64: null };
+                document.getElementById('biodata-form').reset();
+                const preview = document.getElementById('photo-preview');
+                if(preview) preview.src = "";
+            }
+            buildForm();
+            currentStep = 0;
+            displayStep(currentStep);
+            showSection('biodata-form-section');
+        }
+        function showPreview() {
+            showSection('preview-section');
+            renderAllTemplates();
+            renderPreview();
+        }
+
+
+        // --- Authentication ---
+        auth.onAuthStateChanged(user => {
+            hideLoader();
+            if (user) {
+                currentUser = user;
+                document.getElementById('user-email').textContent = user.email;
+                showDashboard();
+            } else {
+                currentUser = null;
+                showSection('landing-section');
+            }
+        });
+
+        function togglePasswordVisibility(fieldId) {
+            const input = document.getElementById(fieldId);
+            const icon = input.nextElementSibling;
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = "password";
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        function signupWithEmail() {
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('signup-confirm-password').value;
+
+            if (password !== confirmPassword) {
+                showToast("पासवर्ड जुळत नाहीत.", false);
+                return;
+            }
+            showLoader();
+            auth.createUserWithEmailAndPassword(email, password)
+                .then(() => { hideAuth(); showToast("नोंदणी यशस्वी झाली!"); })
+                .catch(err => showToast(err.message, false))
+                .finally(hideLoader);
+        }
+
+        function loginWithEmail() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            showLoader();
+            auth.signInWithEmailAndPassword(email, password)
+                .then(() => { hideAuth(); showToast("लॉगिन यशस्वी झाले!"); })
+                .catch(err => showToast(err.message, false))
+                .finally(hideLoader);
+        }
+
+        function loginWithGoogle() {
+            showLoader();
+            auth.signInWithPopup(googleProvider)
+                .then(() => { hideAuth(); showToast("Google लॉगिन यशस्वी झाले!"); })
+                .catch(err => showToast(err.message, false))
+                .finally(hideLoader);
+        }
+
+        function logout() {
+            auth.signOut().then(() => showToast("तुम्ही लॉगआउट झाला आहात."));
+        }
+        document.getElementById('logout-btn').addEventListener('click', logout);
+
+
+        // --- Biodata Form Logic ---
+        function buildForm() {
+            let html = '';
+            let indicatorHtml = '';
+            const rashiOptions = ["मेष", "वृषभ", "मिथुन", "कर्क", "सिंह", "कन्या", "तूळ", "वृश्चिक", "धनु", "मकर", "कुंभ", "मीन"];
+
+            formSteps.forEach((step, index) => {
+                indicatorHtml += `<div class="step" data-step="${index}">${step.name}</div>`;
+                html += `<div class="form-step" data-step="${index}"><h3>${step.name}</h3>`;
+                step.fields.forEach(field => {
+                    const fieldId = field.replace(/[\s\/\(\)]+/g, '-');
+                    html += `<div class="form-group">
+ <label for="${fieldId}">${field}${optionalFields.includes(field) ? ' (ऐच्छिक)' : ''}</label>`;
+                    
+                    if (field === "जोडीदारासाठी अपेक्षा") {
+                        html += `<textarea id="${fieldId}" name="${fieldId}" rows="4"></textarea>`;
+                    } else if (field === "फोटो अपलोड") {
+                        html += '<div id="photo-upload-area"><i class="fas fa-cloud-upload-alt"></i> फोटो अपलोड करण्यासाठी क्लिक करा</div>';
+                        html += '<input type="file" id="photo-input" class="hidden" accept="image/*">';
+                        html += '<img id="photo-preview" class="hidden"/>';
+                        html += '<div id="upload-progress" class="hidden"></div>';
+                    } else if (field === "जन्मतारीख") {
+                        html += `<input type="date" id="${fieldId}" name="${fieldId}">`;
+                    } else if (field === "राशी") {
+                        html += `<select id="${fieldId}" name="${fieldId}">`;
+                        rashiOptions.forEach(r => html += `<option value="${r}">${r}</option>`);
+                        html += `</select>`;
+                    } else {
+                        html += `<input type="text" id="${fieldId}" name="${fieldId}">`;
+                    }
+                    html += '</div>';
+                });
+                html += '</div>';
+            });
+            biodataFormEl.innerHTML = html;
+            stepIndicatorEl.innerHTML = indicatorHtml;
+
+            document.getElementById('photo-upload-area').addEventListener('click', () => document.getElementById('photo-input').click());
+            document.getElementById('photo-input').addEventListener('change', handlePhotoUpload);
+
+            for (const key in formData) {
+                const el = document.getElementById(key);
+                if (el) el.value = formData[key];
+            }
+            if(formData.photoBase64) {
+                const preview = document.getElementById('photo-preview');
+                preview.src = formData.photoBase64;
+                preview.classList.remove('hidden');
+            }
+        }
+
+        function displayStep(stepIndex) {
+            document.querySelectorAll('.form-step').forEach(s => s.classList.remove('active'));
+            document.querySelector(`.form-step[data-step="${stepIndex}"]`).classList.add('active');
+
+            document.querySelectorAll('#step-indicator .step').forEach(s => s.classList.remove('active'));
+            document.querySelector(`#step-indicator .step[data-step="${stepIndex}"]`).classList.add('active');
+
+            prevStepBtn.classList.toggle('hidden', stepIndex === 0);
+            nextStepBtn.classList.toggle('hidden', stepIndex === formSteps.length - 1);
+            finishBtn.classList.toggle('hidden', stepIndex !== formSteps.length - 1);
+        }
+
+        function navigateStep(direction) {
+            const currentStepFields = document.querySelector(`.form-step[data-step="${currentStep}"]`);
+            currentStepFields.querySelectorAll('input, select, textarea').forEach(input => {
+                formData[input.id] = input.value;
+            });
+
+            let isValid = true;
+            if (direction > 0) {
+                 formSteps[currentStep].fields.forEach(field => {
+                    const fieldId = field.replace(/[\s\/\(\)]+/g, '-');
+                    if (!optionalFields.includes(field) && field !== "फोटो अपलोड" && !formData[fieldId]) {
+                        isValid = false;
+                    }
+                 });
+                 if (!isValid) {
+                    showToast("कृपया सर्व अनिवार्य माहिती भरा.", false);
+                    return;
+                 }
+            }
+
+            currentStep += direction;
+            displayStep(currentStep);
+        }
+
+        function finishForm() {
+            const currentStepFields = document.querySelector(`.form-step[data-step="${currentStep}"]`);
+            currentStepFields.querySelectorAll('input, select, textarea').forEach(input => {
+                formData[input.id] = input.value;
+            });
+            showPreview();
+        }
+
+        // --- Photo Upload ---
+        function handlePhotoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                formData.photoBase64 = e.target.result;
+                const preview = document.getElementById('photo-preview');
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                showToast("फोटो निवडला आहे.");
+                renderPreview(); // Re-render preview with new photo
+            };
+            reader.readAsDataURL(file);
+            
+            // Also upload to Firebase for persistence
+            const uploadProgress = document.getElementById('upload-progress');
+            uploadProgress.classList.remove('hidden');
+            const storageRef = storage.ref(`biodata-photos/${currentUser.uid}/${Date.now()}-${file.name}`);
+            const uploadTask = storageRef.put(file);
+            uploadTask.on('state_changed',
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    uploadProgress.textContent = `अपलोड: ${Math.round(progress)}%`;
+                },
+                (error) => {
+                    showToast("फोटो अपलोड अयशस्वी: " + error.message, false);
+                },
+                () => {
+                    uploadTask.snapshot.ref.getDownloadURL().then((downloadURL) => {
+                        formData.photoURL = downloadURL; // Store URL for saving
+                        uploadProgress.textContent = "अपलोड पूर्ण झाले!";
+                    });
+                }
+            );
+        }
+
+        // --- Template and Preview ---
+        const templates = [
+            { id: 'template1', name: "पारंपरिक सुवर्ण", thumb: "https://i.imgur.com/w122N23.png" },
+            { id: 'template2', name: "आधुनिक निळा", thumb: "https://i.imgur.com/5T2aDq5.png" },
+            { id: 'template3', name: "गुलाबी शोभा", thumb: "https://i.imgur.com/zSOub9s.png" },
+            { id: 'template4', name: "साधा पांढरा", thumb: "https://i.imgur.com/4t4YtI2.png" },
+            { id: 'template5', name: "केशरी प्रेरणा", thumb: "https://i.imgur.com/p12sC5r.png" },
+            { id: 'template6', name: "हिरवा ताजेपणा", thumb: "https://i.imgur.com/sI4bYJg.png" }
+        ];
+        let selectedTemplate = 'template1';
+
+        function renderAllTemplates() {
+            const gallery = document.getElementById('template-gallery');
+            gallery.innerHTML = templates.map(t => `
+                <div class="template-thumbnail ${t.id === selectedTemplate ? 'selected' : ''}" onclick="selectTemplate('${t.id}')">
+                    <img src="${t.thumb}" alt="${t.name}">
+                    <p>${t.name}</p>
+                </div>
+            `).join('');
+        }
+
+        function selectTemplate(templateId) {
+            selectedTemplate = templateId;
+            document.querySelectorAll('.template-thumbnail').forEach(t => t.classList.remove('selected'));
+            document.querySelector(`.template-thumbnail[onclick="selectTemplate('${templateId}')"]`).classList.add('selected');
+            renderPreview();
+        }
+
+        function renderPreview() {
+            const previewContent = document.getElementById('biodata-preview-content');
+            const data = { ...formData };
+            const photo = data.photoBase64 ? `<img src="${data.photoBase64}" crossOrigin="anonymous">` : '';
+
+            let html = `
+                <div style="border: 5px solid #D1A054; padding: 20px; background: #FFF8E1;">
+                    <h1 style="text-align:center; color: #8C3B00; font-family: 'Tiro Devanagari Marathi', serif;">|| श्री गणेशाय नमः ||</h1>
+                    ${photo}
+                    <h2 style="background: #D1A054; color: white; padding: 5px; text-align:center;">वैयक्तिक माहिती</h2>
+                    <p><strong>पूर्ण नाव:</strong> ${data['पूर्ण-नाव'] || ''}</p>
+                    <p><strong>जन्मतारीख:</strong> ${data['जन्मतारीख'] || ''}</p>
+                    <p><strong>उंची:</strong> ${data['उंची'] || ''}</p>
+                    <p><strong>जन्मस्थळ:</strong> ${data['जन्मस्थळ'] || ''}</p>
+                    <p><strong>गोत्र:</strong> ${data['गोत्र'] || ''}</p>
+                    <p><strong>राशी:</strong> ${data['राशी'] || ''}</p>
+
+                    <h2 style="background: #D1A054; color: white; padding: 5px; text-align:center;">शिक्षण</h2>
+                    <p><strong>शिक्षणाचा तपशील:</strong> ${data['शिक्षणाचा-तपशील'] || ''}</p>
+                    <p><strong>पदवी:</strong> ${data['पदवी'] || ''}</p>
+                    <p><strong>शाळा/कॉलेज नाव:</strong> ${data['शाळा/कॉलेज-नाव'] || ''}</p>
+
+                    <h2 style="background: #D1A054; color: white; padding: 5px; text-align:center;">व्यवसाय</h2>
+                    <p><strong>नोकरी/व्यवसाय:</strong> ${data['नोकरी/व्यवसाय'] || ''}</p>
+
+                    <h2 style="background: #D1A054; color: white; padding: 5px; text-align:center;">कौटुंबिक माहिती</h2>
+                    <p><strong>वडिलांचे नाव व व्यवसाय:</strong> ${data['वडिलांचे-नाव-व-व्यवसाय'] || ''}</p>
+                    <p><strong>आईचे नाव:</strong> ${data['आईचे-नाव'] || ''}</p>
+                    <p><strong>भावंडे (संख्या व तपशील):</strong> ${data['भावंडे-संख्या-व-तपशील'] || ''}</p>
+                    <p><strong>मामेकूळ:</strong> ${data['मामेकूळ'] || ''}</p>
+
+                    <h2 style="background: #D1A054; color: white; padding: 5px; text-align:center;">अपेक्षा</h2>
+                    <p>${data['जोडीदारासाठी-अपेक्षा'] || ''}</p>
+
+                    <h2 style="background: #D1A054; color: white; padding: 5px; text-align:center;">संपर्क माहिती</h2>
+                    <p><strong>मोबाइल/वॉट्सअप नंबर:</strong> ${data['मोबाइल/वॉट्सअप-नंबर'] || ''}</p>
+                    <p><strong>ईमेल:</strong> ${data['ईमेल'] || ''}</p>
+                    <p><strong>पत्ता:</strong> ${data['पत्ता'] || ''}</p>
+                </div>
+            `;
+            previewContent.innerHTML = html;
+        }
+
+
+        // --- Download and Share ---
+        function downloadAsImage() {
+            showLoader();
+            const node = document.getElementById('biodata-preview-content');
+            html2canvas(node, { scale: 2, useCORS: true }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'biodata.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                hideLoader();
+                showToast("इमेज डाउनलोड झाली आहे.");
+            }).catch(err => {
+                hideLoader();
+                console.error(err);
+                showToast("इमेज डाउनलोड करण्यात अयशस्वी.", false);
+            });
+        }
+
+        function downloadAsPDF() {
+            showLoader();
+            const { jsPDF } = window.jspdf;
+            const node = document.getElementById('biodata-preview-content');
+            html2canvas(node, { scale: 2, useCORS: true }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const ratio = canvasWidth / canvasHeight;
+                const imgWidth = pdfWidth - 20;
+                const imgHeight = imgWidth / ratio;
+                let heightLeft = imgHeight;
+                let position = 10;
+
+                pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                heightLeft -= pdf.internal.pageSize.getHeight();
+
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight + 10;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                    heightLeft -= pdf.internal.pageSize.getHeight();
+                }
+
+                pdf.save("biodata.pdf");
+                hideLoader();
+                showToast("PDF डाउनलोड झाली आहे.");
+            }).catch(err => {
+                hideLoader();
+                console.error(err);
+                showToast("PDF डाउनलोड करण्यात अयशस्वी.", false);
+            });
+        }
+
+        function shareOnWhatsApp() {
+            let text = `*माझा विवाह बायोडाटा*
+
+`;
+            text += `*नाव:* ${formData['पूर्ण-नाव'] || ''}
+`;
+            text += `*जन्मतारीख:* ${formData['जन्मतारीख'] || ''}
+`;
+            text += `*उंची:* ${formData['उंची'] || ''}
+`;
+            text += `*शिक्षण:* ${formData['शिक्षणाचा-तपशील'] || ''}
+`;
+            text += `*नोकरी/व्यवसाय:* ${formData['नोकरी/व्यवसाय'] || ''}
+
+`;
+            text += `अधिक माहितीसाठी, कृपया बायोडाटा इमेज पहा.`;
+
+            const encodedText = encodeURIComponent(text);
+            const waLink = `https://wa.me/?text=${encodedText}`;
+            
+            showToast("WhatsApp वर शेअर करण्यासाठी, कृपया प्रथम इमेज डाउनलोड करा आणि नंतर ती शेअर करा.");
+            window.open(waLink, '_blank');
+        }
+
+
+        // --- Firestore Data Management ---
+        function saveBiodata() {
+            if (!currentUser) {
+                showToast("कृपया प्रथम लॉगिन करा.", false);
+                return;
+            }
+            showLoader();
+            const biodataToSave = {
+                ...formData,
+                userId: currentUser.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                templateId: selectedTemplate
+            };
+
+            if (currentBiodataId) {
+                db.collection('biodatas').doc(currentBiodataId).update(biodataToSave)
+                    .then(() => { showToast("बायोडाटा यशस्वीरित्या अपडेट झाला."); })
+                    .catch(err => showToast(err.message, false))
+                    .finally(hideLoader);
+            } else {
+                db.collection('biodatas').add(biodataToSave)
+                    .then((docRef) => {
+                        currentBiodataId = docRef.id;
+                        showToast("बायोडाटा यशस्वीरित्या जतन झाला.");
+                    })
+                    .catch(err => showToast(err.message, false))
+                    .finally(hideLoader);
+            }
+        }
+
+        function fetchUserBiodatas() {
+            if (!currentUser) return;
+            showLoader();
+            db.collection('biodatas').where("userId", "==", currentUser.uid).orderBy("createdAt", "desc").get()
+                .then(querySnapshot => {
+                    const listEl = document.getElementById('biodatas-list');
+                    if (querySnapshot.empty) {
+                        listEl.innerHTML = "<p>तुम्ही अद्याप कोणताही बायोडाटा तयार केलेला नाही.</p>";
+                        return;
+                    }
+                    let html = '';
+                    querySnapshot.forEach(doc => {
+                        const data = doc.data();
+                        html += `
+                            <div class="biodata-card">
+                                <h4>${data['पूर्ण-नाव'] || 'Untitled'}</h4>
+                                <p> तयार केले: ${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
+                                <button class="btn btn-sm btn-primary" onclick="editBiodata('${doc.id}')"><i class="fas fa-edit"></i> संपादित करा</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteBiodata('${doc.id}')"><i class="fas fa-trash"></i> हटवा</button>
+                            </div>
+                        `;
+                    });
+                    listEl.innerHTML = html;
+                })
+                .catch(err => showToast(err.message, false))
+                .finally(hideLoader);
+        }
+
+        function editBiodata(docId) {
+            showLoader();
+            db.collection('biodatas').doc(docId).get().then(doc => {
+                if (doc.exists) {
+                    formData = doc.data();
+                    currentBiodataId = doc.id;
+                    showBiodataForm(true);
+                } else {
+                    showToast("बायोडाटा आढळला नाही.", false);
+                }
+            }).catch(err => showToast(err.message, false)).finally(hideLoader);
+        }
+
+        function deleteBiodata(docId) {
+            if (confirm("तुम्हाला खात्री आहे की तुम्ही हा बायोडाटा हटवू इच्छita?")) {
+                showLoader();
+                db.collection('biodatas').doc(docId).delete()
+                    .then(() => {
+                        showToast("बायोडाटा हटवला.");
+                        fetchUserBiodatas();
+                    })
+                    .catch(err => showToast(err.message, false))
+                    .finally(hideLoader);
+            }
+        }
+
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            showLoader(); // Show loader until auth state is confirmed
+        });
+
+    </script>
+</body>
+</html>
